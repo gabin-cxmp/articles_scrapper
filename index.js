@@ -3,38 +3,43 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-const URL = 'https://whosnext.com/en/press';
+app.get('/', (req, res) => {
+  res.send('🔎 Use /articles to get the latest press releases from Who\'s Next');
+});
 
 app.get('/articles', async (req, res) => {
   try {
-    const { data } = await axios.get(URL);
+    const url = 'https://whosnext.com/en/press';
+    const { data } = await axios.get(url);
     const $ = cheerio.load(data);
 
     const articles = [];
 
-    $('.grid-item').each((i, el) => {
-      const title = $(el).find('.title').text().trim();
-      const date = $(el).find('.date').text().trim();
+    $('ul li a').each((i, el) => {
+      const title = $(el).find('h2').text().trim();
+      const date = $(el).find('span').text().trim();
       const img = $(el).find('img').attr('src');
-      const link = $(el).find('a').attr('href');
+      const link = $(el).attr('href');
 
-      articles.push({
-        title,
-        date,
-        image: img ? (img.startsWith('http') ? img : `https://whosnext.com${img}`) : null,
-        link: link ? (link.startsWith('http') ? link : `https://whosnext.com${link}`) : null,
-      });
+      if (title && date && link && img) {
+        articles.push({
+          title,
+          date,
+          img,
+          link
+        });
+      }
     });
 
     res.json(articles);
   } catch (error) {
-    console.error('❌ Scraping failed:', error.message);
-    res.status(500).json({ error: 'Something went wrong during scraping.' });
+    console.error('Scraping failed:', error);
+    res.status(500).send('Error occurred while scraping articles');
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
